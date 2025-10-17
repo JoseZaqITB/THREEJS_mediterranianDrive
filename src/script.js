@@ -20,7 +20,7 @@ const debugObject = {
   colorA: "#042c71",
   colorB: "#f87865",
   colorGrass: "#9bbc49",
-  lightPosition: new THREE.Vector3(1, 1, 1),
+  lightPosition: new THREE.Vector2(0.8, 1.0),
 };
 // Canvas
 const canvas = document.querySelector("canvas.webgl");
@@ -54,7 +54,7 @@ const textureLoader = new THREE.TextureLoader();
 const floorAlphaTxt = textureLoader.load("./floor/alpha.jpg");
 
 // gradients
-const gradientTexture = textureLoader.load("./gradients/5.jpg");
+const gradientTexture = textureLoader.load("./gradients/3.jpg");
 gradientTexture.minFilter = THREE.NearestFilter;
 gradientTexture.magFilter = THREE.NearestFilter;
 gradientTexture.generateMipmaps = false;
@@ -187,7 +187,8 @@ const baseMontainMaterial = new THREE.ShaderMaterial({
     uGradients: new THREE.Uniform(3),
     uLightPosition: new THREE.Uniform(debugObject.lightPosition),
     uColor: new THREE.Uniform(new THREE.Color(debugObject.colorGrass)),
-    uDecay: new THREE.Uniform(3.0),
+    uStrenght: new THREE.Uniform(2.0),
+    uDecay: new THREE.Uniform(2.1),
   },
   transparent: true,
 });
@@ -199,19 +200,26 @@ const baseMontainCircle = new THREE.Mesh(
 baseMontainCircle.position.z = 3;
 
 // shadow
-baseMontainCircle.receiveShadow = true;
+//baseMontainCircle.receiveShadow = true;
 scene.add(baseMontainCircle);
 
 // tweaks
-gui.add(baseMontainMaterial.uniforms.uDecay, "value", 0, 10, 1).name("uDecay");
+gui.add(baseMontainMaterial.uniforms.uStrenght, "value", 0, 10, 1).name("uStrenght");
+gui.add(baseMontainMaterial.uniforms.uGradients, "value", 2, 10, 1).name("uGradients");
+gui.add(baseMontainMaterial.uniforms.uDecay, "value", 0, 10, 0.1).name("uDecay");
 
 // bath mesh
 gltfLoader.load("./bath.glb", (gltf) => {
-  const testMesh = gltf.scene.children[0];
-  testMesh.scale.set(0.05, 0.05, 0.05);
-  testMesh.castShadow = true;
-  testMesh.receiveShadow = true;
-  scene.add(testMesh);
+  const bath = gltf.scene.children[0];
+  
+  // settings
+  bath.scale.set(0.05, 0.05, 0.05);
+  bath.rotation.z = Math.PI;
+  bath.material = new THREE.MeshToonMaterial({color: "#ffffff", gradientMap: gradientTexture})
+  // shadows
+  /* bath.castShadow = true;
+  bath.receiveShadow = true; */
+  scene.add(bath);
 });
 
 /**
@@ -222,14 +230,14 @@ scene.add(AmbientLight);
 
 const directionalLight = new THREE.DirectionalLight("#ffffff", 2);
 directionalLight.position.set(6.25, 3, -4);
-directionalLight.castShadow = true;
+/* directionalLight.castShadow = true;
 directionalLight.shadow.mapSize.set(1024, 1024);
 directionalLight.shadow.camera.near = 0.1;
 directionalLight.shadow.camera.far = 30;
 directionalLight.shadow.camera.top = 8;
 directionalLight.shadow.camera.right = 8;
 directionalLight.shadow.camera.bottom = -8;
-directionalLight.shadow.camera.left = -8;
+directionalLight.shadow.camera.left = -8; */
 scene.add(directionalLight);
 
 // Controls
@@ -243,8 +251,8 @@ const renderer = new THREE.WebGLRenderer({
   canvas: canvas,
   antialias: true,
 });
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+/* renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap; */
 renderer.setSize(sizes.width, sizes.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
