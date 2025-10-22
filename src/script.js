@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
 import GUI from "lil-gui";
 import vertexShader from "./shaders/noise/vertex.glsl";
 import fragmentShader from "./shaders/noise/fragment.glsl";
@@ -198,7 +198,6 @@ const loadPlaneNoise = () => {
 
 // car mesh
 gltfLoader.load("./glbs/car.glb", (gltf) => {
-  
   const materialMap = new Map();
   const carMaterial = new THREE.MeshToonMaterial({ gradientMap: gradientsTxt });
   const carToonMaterial = new CustomShaderMaterial({
@@ -212,12 +211,10 @@ gltfLoader.load("./glbs/car.glb", (gltf) => {
   });
 
   gltf.scene.children.map((child) => {
-
     if (child.type === "Mesh") {
       if (child.geometry.attributes.color) {
         child.material = carToonMaterial;
       } else {
-
         let childMaterial = child.material;
         if (!materialMap.has(childMaterial.name)) {
           materialMap.set(
@@ -230,7 +227,6 @@ gltfLoader.load("./glbs/car.glb", (gltf) => {
           );
         }
         child.material = materialMap.get(childMaterial.name);
-
       }
     }
   });
@@ -547,11 +543,6 @@ directionalLight2.shadow.camera.bottom = -8;
 directionalLight2.shadow.camera.left = -8; */
 scene.add(directionalLight2);
 
-// Controls
-const controls = new OrbitControls(camera, canvas);
-controls.target = new THREE.Vector3(0.0, 4.0, 0.0);
-controls.enableDamping = true;
-
 /**
  * Renderer
  */
@@ -565,6 +556,29 @@ renderer.setSize(sizes.width, sizes.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
 /**
+ * controls
+ */
+const control = new PointerLockControls(camera, renderer.domElement);
+
+const forwardCameraDirection = new THREE.Vector3(0, 0, 0);
+control.getDirection(forwardCameraDirection);
+
+// rotation constraints
+const MIN_Y_ANGLE = -Math.PI / 4; // -45 grados
+const MAX_Y_ANGLE = Math.PI / 4; // +45 grados
+let currentCameraAngle = {
+  x: control.object.rotation.x,
+  z: control.object.rotation.z,
+};
+
+// listeners
+window.addEventListener("click", () => {
+  if (!control.isLocked) {
+    // enable controls
+    control.lock();
+  }
+});
+/**
  * Animate
  */
 const clock = new THREE.Clock();
@@ -572,9 +586,29 @@ const clock = new THREE.Clock();
 const tick = () => {
   const elapsedTime = clock.getElapsedTime();
 
+  // update controls
+  if (control.object.rotation.y >= MAX_Y_ANGLE) {
+    control.object.rotation.set(
+      currentCameraAngle.x,
+      MAX_Y_ANGLE,
+      currentCameraAngle.z
+    );
+    currentCameraAngle = {
+      x: control.object.rotation.x,
+      z: control.object.rotation.z,
+    };
+  } else if (control.object.rotation.y <= MIN_Y_ANGLE) {
+    control.object.rotation.set(
+      currentCameraAngle.x,
+      MIN_Y_ANGLE,
+      currentCameraAngle.z
+    );
+    currentCameraAngle = {
+      x: control.object.rotation.x,
+      z: control.object.rotation.z,
+    };
+  }
   // update shaders
-  // Update controls
-  controls.update();
   // update material
   if (noiseMaterial) noiseMaterial.uniforms.uTime.value = elapsedTime;
   // update water material
