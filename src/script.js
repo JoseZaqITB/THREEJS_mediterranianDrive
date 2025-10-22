@@ -748,6 +748,7 @@ if (!isMobile) {
 
       // Limita la rotación vertical para evitar "volteos"
       pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+      yaw = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, yaw));
 
       cameraHolder.rotation.y = yaw; // Rotación horizontal (yaw)
       camera.rotation.x = pitch; // Rotación vertical (pitch)
