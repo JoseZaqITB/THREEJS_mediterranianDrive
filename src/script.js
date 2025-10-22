@@ -25,7 +25,10 @@ import { gsap } from "gsap";
 const gltfLoader = new GLTFLoader();
 const audioLoader = new THREE.AudioLoader();
 // Debug
-const gui = new GUI();
+const gui = new GUI({
+  closeFolders: true,
+});
+gui.hide();
 const debugObject = {
   colorA: "#042c71",
   colorB: "#f87865",
