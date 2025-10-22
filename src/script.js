@@ -5,8 +5,15 @@ import vertexShader from "./shaders/noise/vertex.glsl";
 import fragmentShader from "./shaders/noise/fragment.glsl";
 import grassVertexShader from "./shaders/grass/vertex.glsl";
 import grassFragmentShader from "./shaders/grass/fragment.glsl";
+import skyVertexShader from "./shaders/sky/vertex.glsl";
+import skyFragmentShader from "./shaders/sky/fragment.glsl";
+import waterFragmentShader from "./shaders/water/water/fragment.glsl";
+import waterVertexShader from "./shaders/water/water/vertex.glsl";
+import pointCarFragmentShader from "./shaders/pointCar/fragment.glsl";
+import pointCarVertexShader from "./shaders/pointCar/vertex.glsl";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
+import CustomShaderMaterial from "three-custom-shader-material/vanilla";
 
 import { gsap } from "gsap";
 
@@ -19,45 +26,37 @@ const gui = new GUI();
 const debugObject = {
   colorA: "#042c71",
   colorB: "#f87865",
-  colorGrass: "#9bbc49",
-  lightPosition: new THREE.Vector2(0.8, 1.0),
+  uSkyColorA: "#042c71",
+  uSkyColorB: "#000000",
+  colorMoon: "#8b8b8b",
+  colorRock: "#0c0c0c",
+  colorLight: "#ce9324",
+  lightPosition: new THREE.Vector2(0.0, 1.0),
+  moonPosition: new THREE.Vector2(0.55, 1.0),
+  depthColor: "#130057",
+  surfaceColor: "#006602",
 };
+debugObject.uSkyColorA = debugObject.colorA;
 // Canvas
 const canvas = document.querySelector("canvas.webgl");
-
-/**
- * Scene
- *   */
-const scene = new THREE.Scene();
-
-// hdr
-const rgbeLoader = new RGBELoader();
-rgbeLoader.load("./hdri/cartoonEnviroment_hdr.hdr", (envMap) => {
-  envMap.mapping = THREE.EquirectangularReflectionMapping;
-
-  scene.background = envMap;
-  scene.environment = envMap;
-
-  // rotate hdr
-  scene.backgroundRotation.set(0, Math.PI * 0.5, 0);
-  scene.environmentRotation.set(0, Math.PI * 0.5, 0);
-
-  // light intensity
-  scene.environmentIntensity = 1;
-});
 
 /**
  * Textures
  */
 const textureLoader = new THREE.TextureLoader();
 
-const floorAlphaTxt = textureLoader.load("./floor/alpha.jpg");
+const moonAlphaTxt = textureLoader.load("./moon/alpha.jpg");
+moonAlphaTxt.colorSpace = THREE.SRGBColorSpace;
 
-// gradients
-const gradientTexture = textureLoader.load("./gradients/3.jpg");
-gradientTexture.minFilter = THREE.NearestFilter;
-gradientTexture.magFilter = THREE.NearestFilter;
-gradientTexture.generateMipmaps = false;
+const gradientsTxt = textureLoader.load("./gradients/3.jpg");
+gradientsTxt.colorSpace = THREE.SRGBColorSpace;
+gradientsTxt.minFilter = THREE.NearestFilter;
+gradientsTxt.magFilter = THREE.NearestFilter;
+
+/**
+ * Scene
+ *   */
+const scene = new THREE.Scene();
 
 /**
  * Sizes
@@ -91,13 +90,34 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   100
 );
-camera.position.z = 3;
-camera.position.y = 1;
+camera.position.z = 6;
+camera.position.y = 4;
 scene.add(camera);
 
 /**
  * Mesh
  */
+/**
+ * Skybox
+ */
+const skyGeometry = new THREE.BoxGeometry(50, 50, 50);
+const skyMaterial = new THREE.ShaderMaterial({
+  vertexShader: skyVertexShader,
+  fragmentShader: skyFragmentShader,
+  side: THREE.BackSide,
+  uniforms: {
+    uSkyColorA: new THREE.Uniform(new THREE.Color(debugObject.uSkyColorA)),
+    uSkyColorB: new THREE.Uniform(new THREE.Color(debugObject.uSkyColorB)),
+  },
+});
+
+const sky = new THREE.Mesh(skyGeometry, skyMaterial);
+scene.add(sky);
+
+/**
+ * Noise
+ */
+
 let noiseMaterial = null;
 const loadPlaneNoise = () => {
   // Geometry
@@ -176,7 +196,135 @@ const loadPlaneNoise = () => {
 
 // loadPlaneNoise(); // OJOOO: activate later
 
-// baseMontain
+// car mesh
+gltfLoader.load("./glbs/car.glb", (gltf) => {
+  
+  const materialMap = new Map();
+  const carMaterial = new THREE.MeshToonMaterial({ gradientMap: gradientsTxt });
+  const carToonMaterial = new CustomShaderMaterial({
+    // CSM
+    baseMaterial: THREE.MeshToonMaterial,
+    vertexShader: pointCarVertexShader,
+    fragmentShader: pointCarFragmentShader,
+    vertexColors: true,
+    // MATERIAL
+    gradientMap: gradientsTxt,
+  });
+
+  gltf.scene.children.map((child) => {
+
+    if (child.type === "Mesh") {
+      if (child.geometry.attributes.color) {
+        child.material = carToonMaterial;
+      } else {
+
+        let childMaterial = child.material;
+        if (!materialMap.has(childMaterial.name)) {
+          materialMap.set(
+            childMaterial.name,
+            new THREE.MeshToonMaterial({
+              color: childMaterial.color,
+              map: childMaterial.map,
+              gradientMap: gradientsTxt,
+            })
+          );
+        }
+        child.material = materialMap.get(childMaterial.name);
+
+      }
+    }
+  });
+  const car = gltf.scene;
+  // settings
+  car.position.set(-0.7, 2.5, 4.5);
+  // shadows
+  //car.castShadow = true;
+  //car.receiveShadow = true;
+  scene.add(car);
+});
+
+// palmera
+gltfLoader.load("./glbs/palmera.glb", (gltf) => {
+  const palmeraMaterial = new THREE.MeshToonMaterial({
+    color: "#ce9324",
+    gradientMap: gradientsTxt,
+    side: THREE.DoubleSide,
+  });
+
+  gltf.scene.children.map((child) => {
+    if (child.type === "Mesh") {
+      child.material = palmeraMaterial;
+    }
+  });
+
+  const palmera = gltf.scene;
+  // settings
+  palmera.position.x = -8;
+  palmera.position.z = -3.5;
+
+  palmera.scale.y = 2;
+  palmera.scale.x = 2;
+
+  // material
+
+  // shadows
+  //palmera.castShadow = true;
+  //palmera.receiveShadow = true;
+  scene.add(palmera);
+});
+
+// barrera
+gltfLoader.load("./glbs/barrera.glb", (gltf) => {
+  const barreraMaterial = new THREE.MeshToonMaterial({
+    color: "#ce9324",
+    gradientMap: gradientsTxt,
+    alphaMap: moonAlphaTxt,
+    transparent: true,
+  });
+
+  const barrera = gltf.scene.children[0];
+
+  // settings
+  barrera.position.x = -2.5;
+  barrera.position.y = 1;
+  barrera.position.z = -8;
+  barrera.scale.y = 1;
+
+  // material
+  barrera.material = barreraMaterial;
+  // shadows
+  //palmera.castShadow = true;
+  //palmera.receiveShadow = true;
+  scene.add(barrera);
+});
+
+// silla
+gltfLoader.load("./glbs/silla.glb", (gltf) => {
+  const sillaMaterial = new THREE.MeshToonMaterial({
+    color: "#ce9324",
+    gradientMap: gradientsTxt,
+    transparent: true,
+  });
+
+  const silla = gltf.scene.children[0];
+
+  // settings
+  silla.position.x = -4;
+  silla.position.y = 1.4;
+  silla.position.z = -3.5;
+  silla.scale.y = 1;
+
+  // material
+  silla.material = sillaMaterial;
+  // shadows
+  //palmera.castShadow = true;
+  //palmera.receiveShadow = true;
+  scene.add(silla);
+});
+
+/*
+ * baseMontain
+ */
 
 const baseMontainGeometry = new THREE.CircleGeometry(20, 8, 0, Math.PI);
 baseMontainGeometry.rotateX(-Math.PI * 0.5);
@@ -184,11 +332,15 @@ const baseMontainMaterial = new THREE.ShaderMaterial({
   vertexShader: grassVertexShader,
   fragmentShader: grassFragmentShader,
   uniforms: {
-    uGradients: new THREE.Uniform(3),
+    uGradients: new THREE.Uniform(4),
     uLightPosition: new THREE.Uniform(debugObject.lightPosition),
-    uColor: new THREE.Uniform(new THREE.Color(debugObject.colorGrass)),
-    uStrenght: new THREE.Uniform(2.0),
-    uDecay: new THREE.Uniform(2.1),
+    uMoonPosition: new THREE.Uniform(debugObject.moonPosition),
+    uColor: new THREE.Uniform(new THREE.Color(debugObject.colorMoon)),
+    uStrenght: new THREE.Uniform(0.0),
+    uDecay: new THREE.Uniform(1.4),
+    uRockFrequency: new THREE.Uniform(50),
+    uRockColor: new THREE.Uniform(new THREE.Color(debugObject.colorRock)),
+    uColorLight: new THREE.Uniform(new THREE.Color(debugObject.colorLight)),
   },
   transparent: true,
 });
@@ -197,39 +349,182 @@ const baseMontainCircle = new THREE.Mesh(
   baseMontainMaterial
 );
 // position
-baseMontainCircle.position.z = 3;
+baseMontainCircle.position.z = 10;
 
 // shadow
 //baseMontainCircle.receiveShadow = true;
 scene.add(baseMontainCircle);
 
 // tweaks
-gui.add(baseMontainMaterial.uniforms.uStrenght, "value", 0, 10, 1).name("uStrenght");
-gui.add(baseMontainMaterial.uniforms.uGradients, "value", 2, 10, 1).name("uGradients");
-gui.add(baseMontainMaterial.uniforms.uDecay, "value", 0, 10, 0.1).name("uDecay");
+gui
+  .add(baseMontainMaterial.uniforms.uStrenght, "value", 0, 10, 1)
+  .name("uStrenght");
+gui
+  .add(baseMontainMaterial.uniforms.uGradients, "value", 2, 10, 1)
+  .name("uGradients");
+gui
+  .add(baseMontainMaterial.uniforms.uDecay, "value", 0, 10, 0.1)
+  .name("uDecay");
+gui
+  .add(baseMontainMaterial.uniforms.uRockFrequency, "value", 0, 100, 0.1)
+  .name("uRockFrequency");
 
-// bath mesh
-gltfLoader.load("./bath.glb", (gltf) => {
-  const bath = gltf.scene.children[0];
-  
-  // settings
-  bath.scale.set(0.05, 0.05, 0.05);
-  bath.rotation.z = Math.PI;
-  bath.material = new THREE.MeshToonMaterial({color: "#ffffff", gradientMap: gradientTexture})
-  // shadows
-  /* bath.castShadow = true;
-  bath.receiveShadow = true; */
-  scene.add(bath);
+gui
+  .addColor(debugObject, "colorRock")
+  .onChange(
+    () =>
+      (baseMontainMaterial.uniforms.uRockColor.value = new THREE.Color(
+        debugObject.colorRock
+      ))
+  );
+gui
+  .addColor(debugObject, "colorMoon")
+  .onChange(
+    () =>
+      (baseMontainMaterial.uniforms.uColor.value = new THREE.Color(
+        debugObject.colorMoon
+      ))
+  );
+gui
+  .addColor(debugObject, "colorLight")
+  .onChange(
+    () =>
+      (baseMontainMaterial.uniforms.uColorLight.value = new THREE.Color(
+        debugObject.colorLight
+      ))
+  );
+
+/**
+ * Water
+ */
+// Geometry
+const waterGeometry = new THREE.PlaneGeometry(20, 20, 512, 512);
+
+// Material
+const waterMaterial = new THREE.ShaderMaterial({
+  vertexShader: waterVertexShader,
+  fragmentShader: waterFragmentShader,
+  uniforms: {
+    uTime: { value: 0 },
+
+    uBigWavesElevation: { value: 0.036 },
+    uBigWavesFrequency: { value: new THREE.Vector2(5.383, 1.98) },
+    uBigWavesSpeed: { value: 0.854 },
+
+    uSmallWavesElevation: { value: 0.4 },
+    uSmallWavesFrequency: { value: 0.75 },
+    uSmallWavesSpeed: { value: 0.2 },
+    uSmallIterations: { value: 3 },
+
+    uDepthColor: { value: new THREE.Color(debugObject.depthColor) },
+    uSurfaceColor: { value: new THREE.Color(debugObject.surfaceColor) },
+    uColorOffset: { value: 0.376 },
+    uColorMultiplier: { value: 1.052 },
+  },
 });
+
+// Mesh
+const water = new THREE.Mesh(waterGeometry, waterMaterial);
+water.rotation.x = -Math.PI * 0.5;
+water.position.z = -18;
+scene.add(water);
+
+// debug
+const waterTweak = gui.addFolder("Water");
+waterTweak.addColor(debugObject, "depthColor").onChange(() => {
+  waterMaterial.uniforms.uDepthColor.value.set(debugObject.depthColor);
+});
+waterTweak.addColor(debugObject, "surfaceColor").onChange(() => {
+  waterMaterial.uniforms.uSurfaceColor.value.set(debugObject.surfaceColor);
+});
+
+waterTweak
+  .add(waterMaterial.uniforms.uBigWavesElevation, "value")
+  .min(0)
+  .max(1)
+  .step(0.001)
+  .name("uBigWavesElevation");
+waterTweak
+  .add(waterMaterial.uniforms.uBigWavesFrequency.value, "x")
+  .min(0)
+  .max(10)
+  .step(0.001)
+  .name("uBigWavesFrequencyX");
+waterTweak
+  .add(waterMaterial.uniforms.uBigWavesFrequency.value, "y")
+  .min(0)
+  .max(10)
+  .step(0.001)
+  .name("uBigWavesFrequencyY");
+waterTweak
+  .add(waterMaterial.uniforms.uBigWavesSpeed, "value")
+  .min(0)
+  .max(4)
+  .step(0.001)
+  .name("uBigWavesSpeed");
+
+waterTweak
+  .add(waterMaterial.uniforms.uSmallWavesElevation, "value")
+  .min(0)
+  .max(1)
+  .step(0.001)
+  .name("uSmallWavesElevation");
+waterTweak
+  .add(waterMaterial.uniforms.uSmallWavesFrequency, "value")
+  .min(0)
+  .max(30)
+  .step(0.001)
+  .name("uSmallWavesFrequency");
+waterTweak
+  .add(waterMaterial.uniforms.uSmallWavesSpeed, "value")
+  .min(0)
+  .max(4)
+  .step(0.001)
+  .name("uSmallWavesSpeed");
+waterTweak
+  .add(waterMaterial.uniforms.uSmallIterations, "value")
+  .min(0)
+  .max(5)
+  .step(1)
+  .name("uSmallIterations");
+
+waterTweak
+  .add(waterMaterial.uniforms.uColorOffset, "value")
+  .min(0)
+  .max(1)
+  .step(0.001)
+  .name("uColorOffset");
+waterTweak
+  .add(waterMaterial.uniforms.uColorMultiplier, "value")
+  .min(0)
+  .max(10)
+  .step(0.001)
+  .name("uColorMultiplier");
+
+/**
+ * Moon
+ */
+
+const moonGeometry = new THREE.CircleGeometry(0.75, 32);
+const moonMaterial = new THREE.MeshBasicMaterial({
+  color: "#ffffff",
+  alphaMap: moonAlphaTxt,
+  transparent: true,
+});
+
+const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+moon.position.set(4, 10, -20);
+
+scene.add(moon);
 
 /**
  * Lights
  */
-const AmbientLight = new THREE.AmbientLight(debugObject.colorGrass, 1);
-scene.add(AmbientLight);
+/* const AmbientLight = new THREE.AmbientLight(debugObject.colorMoon, 1);
+scene.add(AmbientLight); */
 
-const directionalLight = new THREE.DirectionalLight("#ffffff", 2);
-directionalLight.position.set(6.25, 3, -4);
+const directionalLight = new THREE.DirectionalLight("#ffffff", 1);
+directionalLight.position.set(0.6, 0.5, -1);
 /* directionalLight.castShadow = true;
 directionalLight.shadow.mapSize.set(1024, 1024);
 directionalLight.shadow.camera.near = 0.1;
@@ -240,8 +535,21 @@ directionalLight.shadow.camera.bottom = -8;
 directionalLight.shadow.camera.left = -8; */
 scene.add(directionalLight);
 
+const directionalLight2 = new THREE.DirectionalLight(debugObject.colorLight, 3);
+directionalLight2.position.set(-1, 1, -1);
+/* directionalLight2.castShadow = true;
+directionalLight2.shadow.mapSize.set(1024, 1024);
+directionalLight2.shadow.camera.near = 0.1;
+directionalLight2.shadow.camera.far = 30;
+directionalLight2.shadow.camera.top = 8;
+directionalLight2.shadow.camera.right = 8;
+directionalLight2.shadow.camera.bottom = -8;
+directionalLight2.shadow.camera.left = -8; */
+scene.add(directionalLight2);
+
 // Controls
 const controls = new OrbitControls(camera, canvas);
+controls.target = new THREE.Vector3(0.0, 4.0, 0.0);
 controls.enableDamping = true;
 
 /**
@@ -269,6 +577,8 @@ const tick = () => {
   controls.update();
   // update material
   if (noiseMaterial) noiseMaterial.uniforms.uTime.value = elapsedTime;
+  // update water material
+  waterMaterial.uniforms.uTime.value = elapsedTime;
   // Render
   renderer.render(scene, camera);
 

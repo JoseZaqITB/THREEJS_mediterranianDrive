@@ -8,7 +8,6 @@ varying vec2 vUv;
 
 
 #include ../includes/simplexNoise2D.glsl
-#include ../includes/perlinNoise2D.glsl
 
 void main()
 {
