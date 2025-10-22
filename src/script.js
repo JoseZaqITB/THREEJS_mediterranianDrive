@@ -9,6 +9,8 @@ import skyVertexShader from "./shaders/sky/vertex.glsl";
 import skyFragmentShader from "./shaders/sky/fragment.glsl";
 import waterFragmentShader from "./shaders/water/water/fragment.glsl";
 import waterVertexShader from "./shaders/water/water/vertex.glsl";
+import cloudFragmentShader from "./shaders/cloud/fragment.glsl";
+import cloudVertexShader from "./shaders/cloud/vertex.glsl";
 import pointCarFragmentShader from "./shaders/pointCar/fragment.glsl";
 import pointCarVertexShader from "./shaders/pointCar/vertex.glsl";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -102,7 +104,7 @@ camera.add(listener);
  * Audio
  */
 const radioSound = new THREE.PositionalAudio(listener);
-audioLoader.load("./audio/Henry_Nelson-Te_extranyare.mp3", (buffer) => {
+audioLoader.load("./audio/HenryNelson_TeExtranyare.mp3", (buffer) => {
   radioSound.setBuffer(buffer);
   radioSound.setRefDistance(1); // distancia desde donde escuchar
   radioSound.setLoop(true);
@@ -111,7 +113,6 @@ audioLoader.load("./audio/Henry_Nelson-Te_extranyare.mp3", (buffer) => {
 });
 const onFirstInteraction = () => {
   radioSound.play();
-  console.log(radioSound.isPlaying);
   
   // eliminar listeners
   window.removeEventListener("touchstart", onFirstInteraction);
@@ -274,15 +275,23 @@ gltfLoader.load("./glbs/car.glb", (gltf) => {
 
 // palmera
 gltfLoader.load("./glbs/palmera.glb", (gltf) => {
-  const palmeraMaterial = new THREE.MeshToonMaterial({
-    color: "#ce9324",
+
+
+  const palmeraToonMaterial = new CustomShaderMaterial({
+    // CSM
+    baseMaterial: THREE.MeshToonMaterial,
+    vertexShader: pointCarVertexShader,
+    fragmentShader: pointCarFragmentShader,
+    vertexColors: true,
+    // MATERIAL
     gradientMap: gradientsTxt,
-    side: THREE.DoubleSide,
   });
 
   gltf.scene.children.map((child) => {
     if (child.type === "Mesh") {
-      child.material = palmeraMaterial;
+       if (child.geometry.attributes.color) {
+        child.material = palmeraToonMaterial;
+      }
     }
   });
 
@@ -291,8 +300,8 @@ gltfLoader.load("./glbs/palmera.glb", (gltf) => {
   palmera.position.x = -8;
   palmera.position.z = -3.5;
 
-  palmera.scale.y = 2;
-  palmera.scale.x = 2;
+  palmera.scale.y = 1.5;
+  palmera.scale.x = 1.5;
 
   // material
 
@@ -547,6 +556,25 @@ moon.position.set(4, 10, -20);
 scene.add(moon);
 
 /**
+ * Clouds
+ */
+const cloudGeometry = new THREE.PlaneGeometry(100,20, 1,1);
+const cloudMaterial = new THREE.ShaderMaterial({
+  vertexShader: cloudVertexShader,
+  fragmentShader: cloudFragmentShader,
+  transparent: true,
+  uniforms: {
+    uTime: new THREE.Uniform(0),
+  }
+})
+
+const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
+clouds.position.set(4,15,-19);
+scene.add(clouds);
+
+
+
+/**
  * Lights
  */
 /* const AmbientLight = new THREE.AmbientLight(debugObject.colorMoon, 1);
@@ -646,6 +674,7 @@ const tick = () => {
   if (noiseMaterial) noiseMaterial.uniforms.uTime.value = elapsedTime;
   // update water material
   waterMaterial.uniforms.uTime.value = elapsedTime;
+  cloudMaterial.uniforms.uTime.value = elapsedTime;
   // Render
   renderer.render(scene, camera);
 
