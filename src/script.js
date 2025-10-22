@@ -13,6 +13,8 @@ import cloudFragmentShader from "./shaders/cloud/fragment.glsl";
 import cloudVertexShader from "./shaders/cloud/vertex.glsl";
 import pointCarFragmentShader from "./shaders/pointCar/fragment.glsl";
 import pointCarVertexShader from "./shaders/pointCar/vertex.glsl";
+import windFragmentShader from "./shaders/wind/fragment.glsl";
+import windVertexShader from "./shaders/wind/vertex.glsl";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import CustomShaderMaterial from "three-custom-shader-material/vanilla";
@@ -287,9 +289,21 @@ gltfLoader.load("./glbs/car.glb", (gltf) => {
 });
 
 // palmera
+let palmeraWindMaterial = null;
 gltfLoader.load("./glbs/palmera.glb", (gltf) => {
 
-
+  palmeraWindMaterial = new CustomShaderMaterial({
+    // CSM
+    baseMaterial: THREE.MeshToonMaterial,
+    vertexShader: windVertexShader,
+    fragmentShader: windFragmentShader,
+    vertexColors: true,
+    uniforms:{
+      uTime: new THREE.Uniform(0),
+    },
+    // MATERIAL
+    gradientMap: gradientsTxt,
+  })
   const palmeraToonMaterial = new CustomShaderMaterial({
     // CSM
     baseMaterial: THREE.MeshToonMaterial,
@@ -304,6 +318,9 @@ gltfLoader.load("./glbs/palmera.glb", (gltf) => {
     if (child.type === "Mesh") {
        if (child.geometry.attributes.color) {
         child.material = palmeraToonMaterial;
+        if(child.name === "palmera_just_plant"){
+          child.material = palmeraWindMaterial;
+        }
       }
     }
   });
@@ -688,6 +705,7 @@ const tick = () => {
   // update water material
   waterMaterial.uniforms.uTime.value = elapsedTime;
   cloudMaterial.uniforms.uTime.value = elapsedTime;
+  if(palmeraWindMaterial) palmeraWindMaterial.uniforms.uTime.value = elapsedTime;
   // Render
   renderer.render(scene, camera);
 
