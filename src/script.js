@@ -104,13 +104,23 @@ camera.add(listener);
  * Audio
  */
 const radioSound = new THREE.PositionalAudio(listener);
-audioLoader.load("./audio/HenryNelson_TeExtranyare.mp3", (buffer) => {
-  radioSound.setBuffer(buffer);
+// load a page to wait
+const p = document.createElement("p");
+p.style.fontSize = "72px";
+p.style.alignContent = "center";
+p.style.textAlign = "center";
+p.style.height = "100vh";
+p.innerText = "LOADING...";
+document.body.appendChild(p);
+// load song
+const loadedSongBuffer = await audioLoader.loadAsync("./audio/HenryNelson_TeExtranyare.mp3"); // OJO: just temp!!!
+  radioSound.setBuffer(loadedSongBuffer);
   radioSound.setRefDistance(1); // distancia desde donde escuchar
   radioSound.setLoop(true);
   radioSound.setVolume(0.5);
   //radioSound.play(); play once user interact
-});
+
+  document.body.removeChild(p);
 const onFirstInteraction = () => {
   radioSound.play();
   
@@ -364,7 +374,7 @@ gltfLoader.load("./glbs/silla.glb", (gltf) => {
  * baseMontain
  */
 
-const baseMontainGeometry = new THREE.CircleGeometry(20, 8, 0, Math.PI);
+const baseMontainGeometry = new THREE.CircleGeometry(20, 8, 0);
 baseMontainGeometry.rotateX(-Math.PI * 0.5);
 const baseMontainMaterial = new THREE.ShaderMaterial({
   vertexShader: grassVertexShader,
@@ -551,7 +561,7 @@ const moonMaterial = new THREE.MeshBasicMaterial({
 });
 
 const moon = new THREE.Mesh(moonGeometry, moonMaterial);
-moon.position.set(4, 10, -20);
+moon.position.set(4, 10, -16);
 
 scene.add(moon);
 
