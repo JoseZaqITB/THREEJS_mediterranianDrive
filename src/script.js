@@ -26,6 +26,7 @@ import { gsap } from "gsap";
  */
 const gltfLoader = new GLTFLoader();
 const audioLoader = new THREE.AudioLoader();
+const isMobile = /Mobi|Android/i.test(navigator.userAgent);
 // Debug
 const gui = new GUI({
   closeFolders: true,
@@ -110,33 +111,74 @@ camera.add(listener);
  */
 const radioSound = new THREE.PositionalAudio(listener);
 // load a page to wait
-const p = document.createElement("p");
-p.style.fontSize = "72px";
-p.style.alignContent = "center";
-p.style.textAlign = "center";
-p.style.height = "100vh";
-p.innerText = "LOADING...";
-document.body.appendChild(p);
+let p = null;
+let button = null;
+let isClicked = false;
+const createLoadPage = () => {
+  p = document.createElement("p");
+  p.style.fontSize = "72px";
+  p.style.alignContent = "center";
+  p.style.textAlign = "center";
+  p.style.height = "80vh";
+  p.innerText = "LOADING...";
+  document.body.appendChild(p);
+
+  // button
+
+  console.log(canvas.style.display);
+  button = document.createElement("button");
+  button.style.position = "absolute";
+  button.style.bottom = "0";
+  button.style.width = "30vw";
+  button.style.height = "10vw";
+  button.textContent = "START";
+  button.style.margin = "0px 35vw 100px 35vw";
+  button.style.fontSize = "6vw";
+  button.onclick = () => {
+    isClicked = true;
+    removeLoadPage();
+  };
+  document.body.appendChild(button);
+};
+createLoadPage();
+
 // load song
-const loadedSongBuffer = await audioLoader.loadAsync("./audio/HenryNelson_TeExtranyare.mp3"); // OJO: just temp!!!
-  radioSound.setBuffer(loadedSongBuffer);
-  radioSound.setRefDistance(1); // distancia desde donde escuchar
-  radioSound.setLoop(true);
-  radioSound.setVolume(0.5);
-  //radioSound.play(); play once user interact
-
+const loadedSongBuffer = await audioLoader.loadAsync(
+  "./audio/HenryNelson_TeExtranyare.mp3"
+); // OJO: just temp!!!
+radioSound.setBuffer(loadedSongBuffer);
+radioSound.setRefDistance(1); // distancia desde donde escuchar
+radioSound.setLoop(true);
+radioSound.setVolume(0.5);
+//radioSound.play(); play once user interact
+function removeLoadPage()  {
   document.body.removeChild(p);
-const onFirstInteraction = () => {
-  radioSound.play();
-  
-  // eliminar listeners
-  window.removeEventListener("touchstart", onFirstInteraction);
-  window.removeEventListener("click", onFirstInteraction);
+  document.body.removeChild(button);
+};
 
+if (!isMobile) {
+  const onFirstInteraction = () => {
+    if (isClicked) {
+      radioSound.play();
+
+      // eliminar listeners
+      window.removeEventListener("click", onFirstInteraction);
+    }
+  };
+  window.addEventListener("click", onFirstInteraction);
+} else {
+  const onFirstInteractionMobile = () => {
+    if(isClicked){
+      if (radioSound.isPlaying) radioSound.stop();
+      radioSound.play();
+      // eliminar listeners
+      window.removeEventListener("touchstart", onFirstInteractionMobile);
+
+    }
+  };
+
+  window.addEventListener("touchstart", onFirstInteractionMobile);
 }
-
-window.addEventListener("touchstart", onFirstInteraction, {once: true});
-window.addEventListener("click", onFirstInteraction, {once: true});
 
 /**
  * Mesh
@@ -291,19 +333,18 @@ gltfLoader.load("./glbs/car.glb", (gltf) => {
 // palmera
 let palmeraWindMaterial = null;
 gltfLoader.load("./glbs/palmera.glb", (gltf) => {
-
   palmeraWindMaterial = new CustomShaderMaterial({
     // CSM
     baseMaterial: THREE.MeshToonMaterial,
     vertexShader: windVertexShader,
     fragmentShader: windFragmentShader,
     vertexColors: true,
-    uniforms:{
+    uniforms: {
       uTime: new THREE.Uniform(0),
     },
     // MATERIAL
     gradientMap: gradientsTxt,
-  })
+  });
   const palmeraToonMaterial = new CustomShaderMaterial({
     // CSM
     baseMaterial: THREE.MeshToonMaterial,
@@ -316,9 +357,9 @@ gltfLoader.load("./glbs/palmera.glb", (gltf) => {
 
   gltf.scene.children.map((child) => {
     if (child.type === "Mesh") {
-       if (child.geometry.attributes.color) {
+      if (child.geometry.attributes.color) {
         child.material = palmeraToonMaterial;
-        if(child.name === "palmera_just_plant"){
+        if (child.name === "palmera_just_plant") {
           child.material = palmeraWindMaterial;
         }
       }
@@ -588,21 +629,19 @@ scene.add(moon);
 /**
  * Clouds
  */
-const cloudGeometry = new THREE.PlaneGeometry(100,20, 1,1);
+const cloudGeometry = new THREE.PlaneGeometry(100, 20, 1, 1);
 const cloudMaterial = new THREE.ShaderMaterial({
   vertexShader: cloudVertexShader,
   fragmentShader: cloudFragmentShader,
   transparent: true,
   uniforms: {
     uTime: new THREE.Uniform(0),
-  }
-})
+  },
+});
 
 const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
-clouds.position.set(4,15,-19);
+clouds.position.set(4, 15, -19);
 scene.add(clouds);
-
-
 
 /**
  * Lights
@@ -649,26 +688,76 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 /**
  * controls
  */
-const control = new PointerLockControls(camera, renderer.domElement);
+let control = null;
+let MIN_Y_ANGLE = null; // -45 grados
+let MAX_Y_ANGLE = null; // +45 grados
+if (!isMobile) {
+  control = new PointerLockControls(camera, renderer.domElement);
 
-const forwardCameraDirection = new THREE.Vector3(0, 0, 0);
-control.getDirection(forwardCameraDirection);
+  const forwardCameraDirection = new THREE.Vector3(0, 0, 0);
+  control.getDirection(forwardCameraDirection);
 
-// rotation constraints
-const MIN_Y_ANGLE = -Math.PI / 4; // -45 grados
-const MAX_Y_ANGLE = Math.PI / 4; // +45 grados
-let currentCameraAngle = {
-  x: control.object.rotation.x,
-  z: control.object.rotation.z,
-};
+  // rotation constraints
+  MIN_Y_ANGLE = -Math.PI / 4; // -45 grados
+  MAX_Y_ANGLE = Math.PI / 4; // +45 grados
+  let currentCameraAngle = {
+    x: control.object.rotation.x,
+    z: control.object.rotation.z,
+  };
 
-// listeners
-window.addEventListener("click", () => {
-  if (!control.isLocked) {
-    // enable controls
-    control.lock();
-  }
-});
+  // listeners
+  window.addEventListener("click", () => {
+    if (!control.isLocked && isClicked) {
+      // enable controls
+      control.lock();
+    }
+  });
+} else {
+  // move with mobile
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let yaw = 0; // Rotación horizontal
+  let pitch = 0; // Rotación vertical
+  const sensitivity = 0.005; // Ajusta la sensibilidad
+
+  // Crea un objeto que actuará como "contenedor" de rotación (tipo FPS)
+  const cameraHolder = new THREE.Object3D();
+  camera.position.set(0, 0, 0);
+  cameraHolder.add(camera);
+  cameraHolder.position.z = 6;
+  cameraHolder.position.y = 4;
+  scene.add(cameraHolder);
+
+  renderer.domElement.addEventListener("touchstart", (event) => {
+    if (event.touches.length === 1 && isClicked) {
+      touchStartX = event.touches[0].clientX;
+      touchStartY = event.touches[0].clientY;
+    }
+  });
+
+  renderer.domElement.addEventListener("touchmove", (event) => {
+    if (event.touches.length === 1 && isClicked) {
+      const touchX = event.touches[0].clientX;
+      const touchY = event.touches[0].clientY;
+
+      const deltaX = touchX - touchStartX;
+      const deltaY = touchY - touchStartY;
+
+      yaw -= deltaX * sensitivity;
+      pitch -= deltaY * sensitivity;
+
+      // Limita la rotación vertical para evitar "volteos"
+      pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+
+      cameraHolder.rotation.y = yaw; // Rotación horizontal (yaw)
+      camera.rotation.x = pitch; // Rotación vertical (pitch)
+
+      touchStartX = touchX;
+      touchStartY = touchY;
+    }
+  });
+}
+
 /**
  * Animate
  */
@@ -678,26 +767,28 @@ const tick = () => {
   const elapsedTime = clock.getElapsedTime();
 
   // update controls
-  if (control.object.rotation.y >= MAX_Y_ANGLE) {
-    control.object.rotation.set(
-      currentCameraAngle.x,
-      MAX_Y_ANGLE,
-      currentCameraAngle.z
-    );
-    currentCameraAngle = {
-      x: control.object.rotation.x,
-      z: control.object.rotation.z,
-    };
-  } else if (control.object.rotation.y <= MIN_Y_ANGLE) {
-    control.object.rotation.set(
-      currentCameraAngle.x,
-      MIN_Y_ANGLE,
-      currentCameraAngle.z
-    );
-    currentCameraAngle = {
-      x: control.object.rotation.x,
-      z: control.object.rotation.z,
-    };
+  if (!isMobile) {
+    if (control.object.rotation.y >= MAX_Y_ANGLE) {
+      control.object.rotation.set(
+        currentCameraAngle.x,
+        MAX_Y_ANGLE,
+        currentCameraAngle.z
+      );
+      currentCameraAngle = {
+        x: control.object.rotation.x,
+        z: control.object.rotation.z,
+      };
+    } else if (control.object.rotation.y <= MIN_Y_ANGLE) {
+      control.object.rotation.set(
+        currentCameraAngle.x,
+        MIN_Y_ANGLE,
+        currentCameraAngle.z
+      );
+      currentCameraAngle = {
+        x: control.object.rotation.x,
+        z: control.object.rotation.z,
+      };
+    }
   }
   // update shaders
   // update material
@@ -705,7 +796,8 @@ const tick = () => {
   // update water material
   waterMaterial.uniforms.uTime.value = elapsedTime;
   cloudMaterial.uniforms.uTime.value = elapsedTime;
-  if(palmeraWindMaterial) palmeraWindMaterial.uniforms.uTime.value = elapsedTime;
+  if (palmeraWindMaterial)
+    palmeraWindMaterial.uniforms.uTime.value = elapsedTime;
   // Render
   renderer.render(scene, camera);
 
