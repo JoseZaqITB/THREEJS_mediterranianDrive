@@ -21,6 +21,7 @@ import { gsap } from "gsap";
  * Base
  */
 const gltfLoader = new GLTFLoader();
+const audioLoader = new THREE.AudioLoader();
 // Debug
 const gui = new GUI();
 const debugObject = {
@@ -93,6 +94,33 @@ const camera = new THREE.PerspectiveCamera(
 camera.position.z = 6;
 camera.position.y = 4;
 scene.add(camera);
+
+// add audio listener
+const listener = new THREE.AudioListener();
+camera.add(listener);
+/**
+ * Audio
+ */
+const radioSound = new THREE.PositionalAudio(listener);
+audioLoader.load("./audio/Henry_Nelson-Te_extranyare.mp3", (buffer) => {
+  radioSound.setBuffer(buffer);
+  radioSound.setRefDistance(1); // distancia desde donde escuchar
+  radioSound.setLoop(true);
+  radioSound.setVolume(0.5);
+  //radioSound.play(); play once user interact
+});
+const onFirstInteraction = () => {
+  radioSound.play();
+  console.log(radioSound.isPlaying);
+  
+  // eliminar listeners
+  window.removeEventListener("touchstart", onFirstInteraction);
+  window.removeEventListener("click", onFirstInteraction);
+
+}
+
+window.addEventListener("touchstart", onFirstInteraction, {once: true});
+window.addEventListener("click", onFirstInteraction, {once: true});
 
 /**
  * Mesh
@@ -212,6 +240,7 @@ gltfLoader.load("./glbs/car.glb", (gltf) => {
 
   gltf.scene.children.map((child) => {
     if (child.type === "Mesh") {
+      // update material
       if (child.geometry.attributes.color) {
         child.material = carToonMaterial;
       } else {
@@ -227,6 +256,10 @@ gltfLoader.load("./glbs/car.glb", (gltf) => {
           );
         }
         child.material = materialMap.get(childMaterial.name);
+      }
+      // add audio to radio
+      if (child.name === "door_v2") {
+        child.add(radioSound);
       }
     }
   });
