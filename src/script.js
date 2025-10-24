@@ -113,7 +113,6 @@ const radioSound = new THREE.PositionalAudio(listener);
 // load a page to wait
 let p = null;
 let button = null;
-let isClicked = false;
 const createLoadPage = () => {
   p = document.createElement("p");
   p.style.fontSize = "72px";
@@ -135,7 +134,7 @@ const createLoadPage = () => {
   button.style.margin = "0px 35vw 100px 35vw";
   button.style.fontSize = "6vw";
   button.onclick = () => {
-    isClicked = true;
+    tick();
     removeLoadPage();
   };
   document.body.appendChild(button);
@@ -144,8 +143,8 @@ createLoadPage();
 
 // load song
 const loadedSongBuffer = await audioLoader.loadAsync(
-  "./audio/HenryNelson_TeExtranyare.mp3"
-); // OJO: just temp!!!
+  "./audio/Henry Nelson-Que_pasa_entre_los_dos.mp3"
+); // OJO: ASYNC METHOD just temp!!!
 radioSound.setBuffer(loadedSongBuffer);
 radioSound.setRefDistance(1); // distancia desde donde escuchar
 radioSound.setLoop(true);
@@ -158,23 +157,20 @@ function removeLoadPage()  {
 
 if (!isMobile) {
   const onFirstInteraction = () => {
-    if (isClicked) {
+    
       radioSound.play();
 
       // eliminar listeners
       window.removeEventListener("click", onFirstInteraction);
-    }
   };
   window.addEventListener("click", onFirstInteraction);
 } else {
   const onFirstInteractionMobile = () => {
-    if(isClicked){
       if (radioSound.isPlaying) radioSound.stop();
       radioSound.play();
       // eliminar listeners
       window.removeEventListener("touchstart", onFirstInteractionMobile);
 
-    }
   };
 
   window.addEventListener("touchstart", onFirstInteractionMobile);
@@ -707,7 +703,7 @@ if (!isMobile) {
 
   // listeners
   window.addEventListener("click", () => {
-    if (!control.isLocked && isClicked) {
+    if (!control.isLocked ) {
       // enable controls
       control.lock();
     }
@@ -729,14 +725,14 @@ if (!isMobile) {
   scene.add(cameraHolder);
 
   renderer.domElement.addEventListener("touchstart", (event) => {
-    if (event.touches.length === 1 && isClicked) {
+    if (event.touches.length === 1 ) {
       touchStartX = event.touches[0].clientX;
       touchStartY = event.touches[0].clientY;
     }
   });
 
   renderer.domElement.addEventListener("touchmove", (event) => {
-    if (event.touches.length === 1 && isClicked) {
+    if (event.touches.length === 1 ) {
       const touchX = event.touches[0].clientX;
       const touchY = event.touches[0].clientY;
 
@@ -806,4 +802,3 @@ const tick = () => {
   window.requestAnimationFrame(tick);
 };
 
-tick();
