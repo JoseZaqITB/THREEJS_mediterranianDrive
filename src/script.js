@@ -122,9 +122,16 @@ const createLoadPage = () => {
   p.innerText = "LOADING...";
   document.body.appendChild(p);
 
-  // button
+};
+createLoadPage();
 
-  console.log(canvas.style.display);
+// load song
+const loadedSongBuffer = await audioLoader.loadAsync(
+  "./audio/Henry Nelson-Que_pasa_entre_los_dos.mp3"
+); // OJO: ASYNC METHOD just temp!!!
+  // button
+  p.innerText = "READY :)";
+
   button = document.createElement("button");
   button.style.position = "absolute";
   button.style.bottom = "0";
@@ -138,13 +145,6 @@ const createLoadPage = () => {
     removeLoadPage();
   };
   document.body.appendChild(button);
-};
-createLoadPage();
-
-// load song
-const loadedSongBuffer = await audioLoader.loadAsync(
-  "./audio/Henry Nelson-Que_pasa_entre_los_dos.mp3"
-); // OJO: ASYNC METHOD just temp!!!
 radioSound.setBuffer(loadedSongBuffer);
 radioSound.setRefDistance(1); // distancia desde donde escuchar
 radioSound.setLoop(true);
