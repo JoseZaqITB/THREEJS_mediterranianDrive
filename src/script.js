@@ -121,7 +121,6 @@ const createLoadPage = () => {
   p.style.height = "80vh";
   p.innerText = "LOADING...";
   document.body.appendChild(p);
-
 };
 createLoadPage();
 
@@ -129,52 +128,34 @@ createLoadPage();
 const loadedSongBuffer = await audioLoader.loadAsync(
   "./audio/Henry Nelson-Que_pasa_entre_los_dos.mp3"
 ); // OJO: ASYNC METHOD just temp!!!
-  // button
-  p.innerText = "READY :)";
+// button
+p.innerText = "READY :)";
 
-  button = document.createElement("button");
-  button.style.position = "absolute";
-  button.style.bottom = "0";
-  button.style.width = "30vw";
-  button.style.height = "10vw";
-  button.textContent = "START";
-  button.style.margin = "0px 35vw 100px 35vw";
-  button.style.fontSize = "6vw";
-  button.onclick = () => {
-    tick();
-    removeLoadPage();
-  };
-  document.body.appendChild(button);
+button = document.createElement("button");
+button.style.position = "absolute";
+button.style.bottom = "0";
+button.style.width = "30vw";
+button.style.height = "10vw";
+button.textContent = "START";
+button.style.margin = "0px 35vw 100px 35vw";
+button.style.fontSize = "6vw";
+button.onclick = () => {
+   if (radioSound.isPlaying) radioSound.stop();
+    radioSound.play();
+  tick();
+  removeLoadPage();
+};
+document.body.appendChild(button);
 radioSound.setBuffer(loadedSongBuffer);
 radioSound.setRefDistance(1); // distancia desde donde escuchar
 radioSound.setLoop(true);
 radioSound.setVolume(0.5);
 //radioSound.play(); play once user interact
-function removeLoadPage()  {
+function removeLoadPage() {
   document.body.removeChild(p);
   document.body.removeChild(button);
-};
-
-if (!isMobile) {
-  const onFirstInteraction = () => {
-    
-      radioSound.play();
-
-      // eliminar listeners
-      window.removeEventListener("click", onFirstInteraction);
-  };
-  window.addEventListener("click", onFirstInteraction);
-} else {
-  const onFirstInteractionMobile = () => {
-      if (radioSound.isPlaying) radioSound.stop();
-      radioSound.play();
-      // eliminar listeners
-      window.removeEventListener("touchstart", onFirstInteractionMobile);
-
-  };
-
-  window.addEventListener("touchstart", onFirstInteractionMobile);
 }
+
 
 /**
  * Mesh
@@ -684,55 +665,84 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 /**
  * controls
  */
-let control = null;
-let MIN_Y_ANGLE = null; // -45 grados
-let MAX_Y_ANGLE = null; // +45 grados
+
+// move with mobile
+let touchStartX = 0;
+let touchStartY = 0;
+let yaw = 0; // Rotación horizontal
+let pitch = 0; // Rotación vertical
+const sensitivity = 0.005; // Ajusta la sensibilidad
+
+// Crea un objeto que actuará como "contenedor" de rotación (tipo FPS)
+const cameraHolder = new THREE.Object3D();
+camera.position.set(0, 0, 0);
+cameraHolder.add(camera);
+cameraHolder.position.z = 6;
+cameraHolder.position.y = 4;
+scene.add(cameraHolder);
+
 if (!isMobile) {
-  control = new PointerLockControls(camera, renderer.domElement);
+  const setControl = (event) => {
+    const touchX = event.clientX;
+    const touchY = event.clientY;
 
-  const forwardCameraDirection = new THREE.Vector3(0, 0, 0);
-  control.getDirection(forwardCameraDirection);
+    const deltaX = touchX - touchStartX;
+    const deltaY = touchY - touchStartY;
 
-  // rotation constraints
-  MIN_Y_ANGLE = -Math.PI / 4; // -45 grados
-  MAX_Y_ANGLE = Math.PI / 4; // +45 grados
-  let currentCameraAngle = {
-    x: control.object.rotation.x,
-    z: control.object.rotation.z,
+    yaw -= deltaX * sensitivity;
+    pitch -= deltaY * sensitivity;
+
+    // Limita la rotación vertical para evitar "volteos"
+    pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+    yaw = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, yaw));
+
+    cameraHolder.rotation.y = yaw; // Rotación horizontal (yaw)
+    camera.rotation.x = pitch; // Rotación vertical (pitch)
+
+    touchStartX = touchX;
+    touchStartY = touchY;
   };
 
-  // listeners
-  window.addEventListener("click", () => {
-    if (!control.isLocked ) {
-      // enable controls
-      control.lock();
+  const createMouseEvents = () => {
+    renderer.domElement.addEventListener("mouseenter", (event) => {
+      touchStartX = event.clientX;
+      touchStartY = event.clientY;
+    });
+
+    renderer.domElement.addEventListener("mousemove", (event) =>
+      setControl(event)
+    );
+  };
+
+  const removeMouseEvents = () => {
+    renderer.domElement.removeEventListener("mouseenter", (event) => {
+      touchStartX = event.clientX;
+      touchStartY = event.clientY;
+    });
+
+    renderer.domElement.removeEventListener("mousemove", (event) =>
+      setControl(event)
+    );
+  };
+
+    createMouseEvents();
+
+
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      removeMouseEvents();
     }
   });
 } else {
-  // move with mobile
-  let touchStartX = 0;
-  let touchStartY = 0;
-  let yaw = 0; // Rotación horizontal
-  let pitch = 0; // Rotación vertical
-  const sensitivity = 0.005; // Ajusta la sensibilidad
-
-  // Crea un objeto que actuará como "contenedor" de rotación (tipo FPS)
-  const cameraHolder = new THREE.Object3D();
-  camera.position.set(0, 0, 0);
-  cameraHolder.add(camera);
-  cameraHolder.position.z = 6;
-  cameraHolder.position.y = 4;
-  scene.add(cameraHolder);
-
   renderer.domElement.addEventListener("touchstart", (event) => {
-    if (event.touches.length === 1 ) {
+    if (event.touches.length === 1) {
       touchStartX = event.touches[0].clientX;
       touchStartY = event.touches[0].clientY;
     }
   });
 
   renderer.domElement.addEventListener("touchmove", (event) => {
-    if (event.touches.length === 1 ) {
+    if (event.touches.length === 1) {
       const touchX = event.touches[0].clientX;
       const touchY = event.touches[0].clientY;
 
@@ -763,30 +773,6 @@ const clock = new THREE.Clock();
 const tick = () => {
   const elapsedTime = clock.getElapsedTime();
 
-  // update controls
-  if (!isMobile) {
-    if (control.object.rotation.y >= MAX_Y_ANGLE) {
-      control.object.rotation.set(
-        currentCameraAngle.x,
-        MAX_Y_ANGLE,
-        currentCameraAngle.z
-      );
-      currentCameraAngle = {
-        x: control.object.rotation.x,
-        z: control.object.rotation.z,
-      };
-    } else if (control.object.rotation.y <= MIN_Y_ANGLE) {
-      control.object.rotation.set(
-        currentCameraAngle.x,
-        MIN_Y_ANGLE,
-        currentCameraAngle.z
-      );
-      currentCameraAngle = {
-        x: control.object.rotation.x,
-        z: control.object.rotation.z,
-      };
-    }
-  }
   // update shaders
   // update material
   if (noiseMaterial) noiseMaterial.uniforms.uTime.value = elapsedTime;
@@ -801,4 +787,3 @@ const tick = () => {
   // Call tick again on the next frame
   window.requestAnimationFrame(tick);
 };
-
